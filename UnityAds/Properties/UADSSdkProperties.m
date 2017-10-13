@@ -3,11 +3,18 @@
 NSString * const kUnityAdsCacheDirName = @"UnityAdsCache";
 NSString * const kUnityAdsLocalCacheFilePrefix = @"UnityAdsCache-";
 NSString * const kUnityAdsLocalStorageFilePrefix  = @"UnityAdsStorage-";
+<<<<<<< HEAD
 NSString * const kUnityAdsWebviewBranchInfoDictionaryKey = @"UADSWebviewBranch";
 NSString * const kUnityAdsVersionName = @"2.1.1";
 NSString * const kUnityAdsFlavorDebug = @"debug";
 NSString * const kUnityAdsFlavorRelease = @"release";
 int const kUnityAdsVersionCode = 2101;
+=======
+NSString * const kUnityAdsVersionName = @"2.0.3";
+NSString * const kUnityAdsFlavorDebug = @"debug";
+NSString * const kUnityAdsFlavorRelease = @"release";
+int const kUnityAdsVersionCode = 2003;
+>>>>>>> parent of 8ce15f9... Release 2.0.4
 
 @implementation UADSSdkProperties
 
