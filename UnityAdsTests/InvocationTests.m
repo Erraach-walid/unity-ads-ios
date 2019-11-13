@@ -1,7 +1,8 @@
 #import <XCTest/XCTest.h>
+#import <WebKit/WebKit.h>
 #import "UnityAdsTests-Bridging-Header.h"
 
-@interface InvocationTestsWebView : UIWebView
+@interface InvocationTestsWebView : WKWebView
 @property (nonatomic, assign) BOOL jsInvoked;
 @property (nonatomic, strong) NSString *jsCall;
 @property (nonatomic, strong) XCTestExpectation *expectation;
@@ -24,15 +25,18 @@
     return self;
 }
 
-- (nullable NSString *)stringByEvaluatingJavaScriptFromString:(NSString *)script {
+- (void)evaluateJavaScript:(NSString *)javaScriptString
+         completionHandler:(void (^)(id, NSError *error))completionHandler {
     self.jsInvoked = true;
-    self.jsCall = script;
-    
+    self.jsCall = javaScriptString;
+
     if (self.expectation) {
         [self.expectation fulfill];
     }
     
-    return NULL;
+    if (completionHandler) {
+        completionHandler(self, nil);
+    }
 }
 
 @end
@@ -46,14 +50,14 @@ static int INVOKE_COUNT = 0;
 static NSMutableDictionary *VALUES;
 static NSMutableArray *CALLBACKS;
 
-+ (void)WebViewExposed_apiTestMethod:(NSString *)value callback:(UADSWebViewCallback *)callback {
++ (void)WebViewExposed_apiTestMethod:(NSString *)value callback:(USRVWebViewCallback *)callback {
     INVOKE_COUNT++;
     [VALUES setObject:value forKey:[callback callbackId]];
     [CALLBACKS addObject:callback];
     
 }
 
-+ (void)WebViewExposed_apiTestMethodNoParams:(UADSWebViewCallback *)callback {
++ (void)WebViewExposed_apiTestMethodNoParams:(USRVWebViewCallback *)callback {
     INVOKE_COUNT++;
     [CALLBACKS addObject:callback];
 }
@@ -61,24 +65,33 @@ static NSMutableArray *CALLBACKS;
 - (void)setUp {
     [super setUp];
     
-    UADSWebViewApp *webViewApp = [[UADSWebViewApp alloc] init];
-    [UADSWebViewApp setCurrentApp:webViewApp];
+    USRVWebViewApp *webViewApp = [[USRVWebViewApp alloc] init];
+    [USRVWebViewApp setCurrentApp:webViewApp];
+
     InvocationTestsWebView *webView = [[InvocationTestsWebView alloc] init];
-    [[UADSWebViewApp getCurrentApp] setWebView:webView];
-    [[UADSWebViewApp getCurrentApp] setWebAppLoaded:true];
-    [[UADSWebViewApp getCurrentApp] setWebAppInitialized:true];
     
+    USRVConfiguration *config = [[USRVConfiguration alloc] initWithConfigUrl:@"http://localhost/"];
+    XCTestExpectation *expectation = [self expectationWithDescription:@"expectation"];
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    dispatch_async(queue, ^{
+        [USRVWebViewApp create:config view:webView];
+        [[USRVWebViewApp getCurrentApp] setWebAppLoaded:true];
+        [[USRVWebViewApp getCurrentApp] setWebAppInitialized:true];
+        [expectation fulfill];
+    });
+
+    [self waitForExpectationsWithTimeout:60 handler:^(NSError * _Nullable error) {
+    }];
+
     INVOKE_COUNT = 0;
     VALUES = [[NSMutableDictionary alloc] init];
     CALLBACKS = [[NSMutableArray alloc] init];
     
-    UADSConfiguration *configuration = [[UADSConfiguration alloc] init];
     NSArray *classList = @[
                            @"InvocationTests",
                            ];
     
-    [configuration setWebAppApiClassList:classList];
-    [UADSInvocation setClassTable:classList];
+    [USRVInvocation setClassTable:classList];
 }
 
 - (void)tearDown {
@@ -86,14 +99,14 @@ static NSMutableArray *CALLBACKS;
 }
 
 - (void)testBasicInvocation {
-    UADSInvocation *invocation = [[UADSInvocation alloc] init];
-    UADSWebViewCallback *cb1 = [[UADSWebViewCallback alloc] initWithCallbackId:@"CALLBACK_01" invocationId:[invocation invocationId]];
+    USRVInvocation *invocation = [[USRVInvocation alloc] init];
+    USRVWebViewCallback *cb1 = [[USRVWebViewCallback alloc] initWithCallbackId:@"CALLBACK_01" invocationId:[invocation invocationId]];
     [invocation addInvocation:@"InvocationTests" methodName:@"apiTestMethod" parameters:@[@"test1"] callback:cb1];
-    UADSWebViewCallback *cb2 = [[UADSWebViewCallback alloc] initWithCallbackId:@"CALLBACK_02" invocationId:[invocation invocationId]];
+    USRVWebViewCallback *cb2 = [[USRVWebViewCallback alloc] initWithCallbackId:@"CALLBACK_02" invocationId:[invocation invocationId]];
     [invocation addInvocation:@"InvocationTests" methodName:@"apiTestMethod" parameters:@[@"test2"] callback:cb2];
-    UADSWebViewCallback *cb3 = [[UADSWebViewCallback alloc] initWithCallbackId:@"CALLBACK_03" invocationId:[invocation invocationId]];
+    USRVWebViewCallback *cb3 = [[USRVWebViewCallback alloc] initWithCallbackId:@"CALLBACK_03" invocationId:[invocation invocationId]];
     [invocation addInvocation:@"InvocationTests" methodName:@"apiTestMethod" parameters:@[@"test3"] callback:cb3];
-    UADSWebViewCallback *cb4 = [[UADSWebViewCallback alloc] initWithCallbackId:@"CALLBACK_04" invocationId:[invocation invocationId]];
+    USRVWebViewCallback *cb4 = [[USRVWebViewCallback alloc] initWithCallbackId:@"CALLBACK_04" invocationId:[invocation invocationId]];
     [invocation addInvocation:@"InvocationTests" methodName:@"apiTestMethod" parameters:@[@"test4"] callback:cb4];
 
     [invocation nextInvocation];
@@ -105,7 +118,7 @@ static NSMutableArray *CALLBACKS;
     dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     dispatch_sync(queue, ^{
         [invocation sendInvocationCallback];
-        [(InvocationTestsWebView *)[[UADSWebViewApp getCurrentApp] webView] setExpectation:expectation];
+        [(InvocationTestsWebView *)[[USRVWebViewApp getCurrentApp] webView] setExpectation:expectation];
         [self waitForExpectationsWithTimeout:60 handler:^(NSError * _Nullable error) {
         }];
     });
@@ -122,13 +135,13 @@ static NSMutableArray *CALLBACKS;
     XCTAssertEqualObjects([CALLBACKS objectAtIndex:2], cb3, @"sent and stored callbacks should be the same");
     XCTAssertEqualObjects([CALLBACKS objectAtIndex:3], cb4, @"sent and stored callbacks should be the same");
 
-    XCTAssertTrue([(InvocationTestsWebView *)[[UADSWebViewApp getCurrentApp] webView] jsInvoked], @"WebView invokeJavascript should've been invoked but was not");
+    XCTAssertTrue([(InvocationTestsWebView *)[[USRVWebViewApp getCurrentApp] webView] jsInvoked], @"WebView invokeJavascript should've been invoked but was not");
 }
 
 
 - (void)testBatchInvocationOneInvalidMethod {
-    UADSInvocation *invocation = [[UADSInvocation alloc] init];
-    UADSWebViewCallback *cb1 = [[UADSWebViewCallback alloc] initWithCallbackId:@"CALLBACK_01" invocationId:[invocation invocationId]];
+    USRVInvocation *invocation = [[USRVInvocation alloc] init];
+    USRVWebViewCallback *cb1 = [[USRVWebViewCallback alloc] initWithCallbackId:@"CALLBACK_01" invocationId:[invocation invocationId]];
     NSException *receivedException;
 
     @try {
@@ -141,11 +154,11 @@ static NSMutableArray *CALLBACKS;
     XCTAssertNotNil(receivedException, "Received exception for the first addInvocation should not be null");
     XCTAssertEqualObjects(receivedException.name, @"InvalidInvocationException", "Exception should be InvalidInvocationException");
 
-    UADSWebViewCallback *cb2 = [[UADSWebViewCallback alloc] initWithCallbackId:@"CALLBACK_02" invocationId:[invocation invocationId]];
+    USRVWebViewCallback *cb2 = [[USRVWebViewCallback alloc] initWithCallbackId:@"CALLBACK_02" invocationId:[invocation invocationId]];
     [invocation addInvocation:@"InvocationTests" methodName:@"apiTestMethod" parameters:@[@"test2"] callback:cb2];
-    UADSWebViewCallback *cb3 = [[UADSWebViewCallback alloc] initWithCallbackId:@"CALLBACK_03" invocationId:[invocation invocationId]];
+    USRVWebViewCallback *cb3 = [[USRVWebViewCallback alloc] initWithCallbackId:@"CALLBACK_03" invocationId:[invocation invocationId]];
     [invocation addInvocation:@"InvocationTests" methodName:@"apiTestMethod" parameters:@[@"test3"] callback:cb3];
-    UADSWebViewCallback *cb4 = [[UADSWebViewCallback alloc] initWithCallbackId:@"CALLBACK_04" invocationId:[invocation invocationId]];
+    USRVWebViewCallback *cb4 = [[USRVWebViewCallback alloc] initWithCallbackId:@"CALLBACK_04" invocationId:[invocation invocationId]];
     [invocation addInvocation:@"InvocationTests" methodName:@"apiTestMethod" parameters:@[@"test4"] callback:cb4];
 
     [invocation nextInvocation];
@@ -157,7 +170,7 @@ static NSMutableArray *CALLBACKS;
     dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
     dispatch_sync(queue, ^{
         [invocation sendInvocationCallback];
-        [(InvocationTestsWebView *)[[UADSWebViewApp getCurrentApp] webView] setExpectation:expectation];
+        [(InvocationTestsWebView *)[[USRVWebViewApp getCurrentApp] webView] setExpectation:expectation];
         [self waitForExpectationsWithTimeout:60 handler:^(NSError * _Nullable error) {
         }];
     });
@@ -172,7 +185,7 @@ static NSMutableArray *CALLBACKS;
     XCTAssertEqualObjects([CALLBACKS objectAtIndex:1], cb3, @"sent and stored callbacks should be the same");
     XCTAssertEqualObjects([CALLBACKS objectAtIndex:2], cb4, @"sent and stored callbacks should be the same");
 
-    XCTAssertTrue([(InvocationTestsWebView *)[[UADSWebViewApp getCurrentApp] webView] jsInvoked], @"WebView invokeJavascript should've been invoked but was not");
+    XCTAssertTrue([(InvocationTestsWebView *)[[USRVWebViewApp getCurrentApp] webView] jsInvoked], @"WebView invokeJavascript should've been invoked but was not");
 }
 
 @end

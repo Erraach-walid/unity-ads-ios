@@ -2,7 +2,7 @@
 #import "UnityAdsTests-Bridging-Header.h"
 
 
-@interface MockWebViewAppForAppSheetTests : UADSWebViewApp
+@interface MockWebViewAppForAppSheetTests : USRVWebViewApp
 @property (nonatomic, strong) XCTestExpectation *presentException;
 @end
 
@@ -16,7 +16,7 @@
     return true;
 }
 
-- (BOOL)invokeCallback:(UADSInvocation *)invocation {
+- (BOOL)invokeCallback:(USRVInvocation *)invocation {
     return true;
 }
 
@@ -31,13 +31,13 @@
 
 @implementation AppSheetTests
 
-UADSAppSheet *appSheet = nil;
+USTRAppSheet *appSheet = nil;
 
 - (void)setUp {
     MockWebViewAppForAppSheetTests *webApp = [[MockWebViewAppForAppSheetTests alloc] init];
-    [UADSWebViewApp setCurrentApp:webApp];
+    [USRVWebViewApp setCurrentApp:webApp];
     
-    appSheet = [UADSAppSheet instance];
+    appSheet = [[USTRAppSheet alloc] init];
     [super setUp];
 }
 
@@ -53,7 +53,7 @@ UADSAppSheet *appSheet = nil;
 }
 
 - (void)testPrepare {
-    if ([UADSDevice isSimulator]) {
+    if ([USRVDevice isSimulator]) {
         NSLog(@"--- IGNORED IN SIMULATOR ---");
         return;
     }
@@ -74,7 +74,7 @@ UADSAppSheet *appSheet = nil;
 }
 
 - (void)testPrepareCalledTwiceWithSameId {
-    if ([UADSDevice isSimulator]) {
+    if ([USRVDevice isSimulator]) {
         NSLog(@"--- IGNORED IN SIMULATOR ---");
         return;
     }
@@ -101,7 +101,7 @@ UADSAppSheet *appSheet = nil;
 }
 
 - (void)testPrepareCalledTwiceWithDifferentIds {
-    if ([UADSDevice isSimulator]) {
+    if ([USRVDevice isSimulator]) {
         NSLog(@"--- IGNORED IN SIMULATOR ---");
         return;
     }
@@ -141,7 +141,7 @@ UADSAppSheet *appSheet = nil;
 }
 
 - (void)testPresent {
-    if ([UADSDevice isSimulator]) {
+    if ([USRVDevice isSimulator]) {
         NSLog(@"--- IGNORED IN SIMULATOR ---");
         return;
     }
@@ -170,13 +170,13 @@ UADSAppSheet *appSheet = nil;
     [self waitForExpectationsWithTimeout:10 handler:^(NSError * _Nullable error) {
         XCTAssertTrue(true, "Didn't timeout");
     }];
-    
+
+    XCTestExpectation *expectation2 = [self expectationWithDescription:@"presentAppSheetEventExpectation"];
+    MockWebViewAppForAppSheetTests *mockApp = (MockWebViewAppForAppSheetTests *)[USRVWebViewApp getCurrentApp];
+    [mockApp setPresentException:expectation2];
+
     [appSheet presentAppSheet:parameters animated:true completionBlock:^(BOOL result, NSString * _Nullable error) {
     }];
-    
-    XCTestExpectation *expectation2 = [self expectationWithDescription:@"presentAppSheetEventExpectation"];
-    MockWebViewAppForAppSheetTests *mockApp = (MockWebViewAppForAppSheetTests *)[UADSWebViewApp getCurrentApp];
-    [mockApp setPresentException:expectation2];
 
     [self waitForExpectationsWithTimeout:10 handler:^(NSError * _Nullable error) {
         XCTAssertTrue(true, "Didn't timeout");
@@ -232,7 +232,7 @@ UADSAppSheet *appSheet = nil;
 //    }];
 //
 //    XCTestExpectation *expectation2 = [self expectationWithDescription:@"presentAppSheetEventExpectation"];
-//    MockWebViewAppForAppSheetTests *mockApp = (MockWebViewAppForAppSheetTests *)[UADSWebViewApp getCurrentApp];
+//    MockWebViewAppForAppSheetTests *mockApp = (MockWebViewAppForAppSheetTests *)[USRVWebViewApp getCurrentApp];
 //    [mockApp setPresentException:expectation2];
 //    
 //    [self waitForExpectationsWithTimeout:10 handler:^(NSError * _Nullable error) {
